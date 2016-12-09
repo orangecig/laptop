@@ -1,0 +1,102 @@
+#!/bin/sh
+
+ask() {
+  while true; do
+    if [ "${2:-}" = "Y" ]; then
+      prompt="Y/n"
+      default=Y
+    elif [ "${2:-}" = "N" ]; then
+      prompt="y/N"
+      default=N
+    else
+      prompt="y/n"
+      default=
+    fi
+    read -p "$1 [$prompt] " REPLY </dev/tty
+    if [ -z "$REPLY" ]; then
+      REPLY=$default
+    fi
+    case "$REPLY" in
+      Y*|y*) return 0 ;;
+      N*|n*) return 1 ;;
+    esac
+  done
+}
+
+fancy_echo "Changing a few macOS settings..."
+
+# Menu bar: hide the Time Machine, Volume, and User icons
+for domain in ~/Library/Preferences/ByHost/com.apple.systemuiserver.*; do
+	defaults write "${domain}" dontAutoLoad -array \
+		"/System/Library/CoreServices/Menu Extras/TimeMachine.menu" \
+		"/System/Library/CoreServices/Menu Extras/Volume.menu" \
+		"/System/Library/CoreServices/Menu Extras/User.menu"
+done
+
+# Expand save panel by default
+defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true
+defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode2 -bool true
+
+# Expand print panel by default
+defaults write NSGlobalDomain PMPrintingExpandedStateForPrint -bool true
+defaults write NSGlobalDomain PMPrintingExpandedStateForPrint2 -bool true
+
+# Save to disk (not to iCloud) by default
+defaults write NSGlobalDomain NSDocumentSaveNewDocumentsToCloud -bool false
+
+# Automatically quit printer app once the print jobs complete
+defaults write com.apple.print.PrintingPrefs "Quit When Finished" -bool true
+
+# Disable Resume system-wide
+defaults write com.apple.systempreferences NSQuitAlwaysKeepsWindows -bool false
+
+# Increase sound quality for Bluetooth headphones/headsets
+defaults write com.apple.BluetoothAudioAgent "Apple Bitpool Min (editable)" -int 40
+
+# Show the ~/Library folder
+chflags nohidden ~/Library
+
+# Minimize windows into their application’s icon
+defaults write com.apple.dock minimize-to-application -bool true
+
+# Don’t automatically rearrange Spaces based on most recent use
+defaults write com.apple.dock mru-spaces -bool false
+
+# Prevent Safari from opening ‘safe’ files automatically after downloading
+defaults write com.apple.Safari AutoOpenSafeDownloads -bool false
+
+# Install apps
+fancy_echo "Installing GUI apps..."
+
+brew cask install atom
+brew cask install 1password
+brew cask install dropbox
+brew cask install spotify
+brew cask install sketch
+brew cask install flux
+brew cask install adobe-creative-cloud
+
+# Link up dotfiles
+fancy_echo "Setting up dotfiles"
+
+# Check if oh-my-zsh is installed
+fancy_echo "Checking to see if oh-my-zsh is here..."
+
+if [ ! -d "~/.oh-my-zsh" ]; then
+	fancy_echo "Getting oh-my-zsh"
+  git clone git://github.com/robbyrussell/oh-my-zsh.git ~/.oh-my-zsh
+fi
+
+fancy_echo "Checking to see if dotfiles dir is there already..."
+
+if [ ! -d ~/.dotfiles ]; then
+  git clone https://github.com/jmegs/dotfiles.git ~/.dotfiles
+fi
+
+lsrc
+
+if ask "All good to symlink the files?" Y; then
+	rcup -v
+fi
+
+fancy_echo "Dotfiles OUT <drops mic>"
